@@ -35,6 +35,7 @@ import android.view.View.OnLongClickListener;
 import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
@@ -1122,7 +1123,8 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         if (mSensorManager != null) {
             mSensorManager.registerListener(this,
                     mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-                    SensorManager.SENSOR_DELAY_FASTEST);
+            //        SensorManager.SENSOR_DELAY_FASTEST);
+            SensorManager.SENSOR_DELAY_UI);
         }
     }
 
@@ -1152,14 +1154,44 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         }
 
         float dx = (mOriginalVectorX - x) * 1000;
-        float dy = (mOriginalVectorY - y) * 1000;
+        float dy = 0; //(mOriginalVectorY - y) * 1000;
         // Set translation on ImageView matrix
-        onDrag(dx, dy);
+        //onDrag(dx, dy);
+        onSmoothDrag(dx, dy);
         mOriginalVectorX = x;
         mOriginalVectorY = y;
     }
 
-    public void onSmoothDrag(float dx, float dy) {
+    private Runnable mSmoothDragRunnable;
+
+    public void onSmoothDrag(final float dx, final float dy) {
+        if (mSmoothDragRunnable != null) {
+            getImageView().removeCallbacks(mSmoothDragRunnable);
+        }
+        final Interpolator interpolator = new DecelerateInterpolator();
+        final long startTime = System.currentTimeMillis();
+        final long duration = Math.max(1000, Math.min(0, (long) Math.abs(dx * 10)));
+        if (duration == 0) {
+            onDrag(dx, dy);
+            return;
+        }
+        Log8.d(Math.abs(dx));
+        mSmoothDragRunnable = new Runnable() {
+            @Override
+            public void run() {
+                float t = (float) (System.currentTimeMillis() - startTime) / duration;
+                //t = Math.max(100f, t);
+                float interpolatedRatio = interpolator.getInterpolation(t);
+                float tempX = dx + interpolatedRatio;
+                float tempY = 0f; // dy + interpolatedRatio;
+                onDrag(tempX, tempY);
+                if (t < 10f) {
+                    getImageView().post(this);
+                }
+            }
+        };
+        getImageView().post(mSmoothDragRunnable);
+        /*
         mAnimator = ValueAnimator.ofFloat(mLastShowProgress, mShowProgress);
         mAnimator.addUpdateListener(new AnimatorUpdateListener() {
             @Override
@@ -1175,6 +1207,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         mAnimator.setInterpolator(new CubicBezierInterpolator(.01, .7, .01, 1));
         mAnimator.setFrameDelay(300);
         mAnimator.start();
+        */
     }
 
     private float mOriginalVectorX = -1f;
