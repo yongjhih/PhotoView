@@ -26,6 +26,7 @@ import android.view.MenuItem.OnMenuItemClickListener;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
+import android.widget.ImageView.ScaleType;
 
 /**
  * Lock/Unlock button is added to the ActionBar.
@@ -71,6 +72,7 @@ public class ViewPagerActivity extends Activity {
 		public View instantiateItem(ViewGroup container, int position) {
 			PhotoView photoView = new PhotoView(container.getContext());
 			photoView.setImageResource(sDrawables[position]);
+			photoView.setScaleType(ScaleType.CENTER_CROP);
 
 			// Now just add PhotoView to ViewPager and return it
 			container.addView(photoView, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
