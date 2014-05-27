@@ -37,6 +37,7 @@ import android.view.ViewTreeObserver;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
 
@@ -366,7 +367,6 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                     String.format("onDrag: dx: %.2f. dy: %.2f", dx, dy));
         }
 
-        Log8.d(dx, dy);
         ImageView imageView = getImageView();
         mSuppMatrix.postTranslate(dx, dy);
         checkAndDisplayMatrix();
@@ -1153,8 +1153,8 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
             mOriginalVectorY = y;
         }
 
-        float dx = (mOriginalVectorX - x) * 1000;
-        float dy = 0; //(mOriginalVectorY - y) * 1000;
+        float dx = (mOriginalVectorX - x) * 5000;// * TODO widthRatio
+        float dy = 0; //(mOriginalVectorY - y) * 5000; // * TODO heightRaito
         // Set translation on ImageView matrix
         //onDrag(dx, dy);
         onSmoothDrag(dx, dy);
@@ -1163,33 +1163,51 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     }
 
     private Runnable mSmoothDragRunnable;
+    private boolean mSmoothLocked = false;
 
-    public void onSmoothDrag(final float dx, final float dy) {
+    public void onSmoothDrag(float dx, float dy) {
+        if (mSmoothLocked) return;
         if (mSmoothDragRunnable != null) {
             getImageView().removeCallbacks(mSmoothDragRunnable);
         }
-        final Interpolator interpolator = new DecelerateInterpolator();
+
+        final Interpolator interpolator = new LinearInterpolator();
         final long startTime = System.currentTimeMillis();
-        final long duration = Math.max(1000, Math.min(0, (long) Math.abs(dx * 10)));
-        if (duration == 0) {
-            onDrag(dx, dy);
-            return;
-        }
-        Log8.d(Math.abs(dx));
+        final long duration = 300;
+
+        final float smoothDx = dx;
+        final float smoothDy = dy;
+
         mSmoothDragRunnable = new Runnable() {
+            float lastInterpolatedRatio = 0f;
+
             @Override
             public void run() {
-                float t = (float) (System.currentTimeMillis() - startTime) / duration;
-                //t = Math.max(100f, t);
-                float interpolatedRatio = interpolator.getInterpolation(t);
-                float tempX = dx + interpolatedRatio;
-                float tempY = 0f; // dy + interpolatedRatio;
-                onDrag(tempX, tempY);
-                if (t < 10f) {
-                    getImageView().post(this);
+                if (getImageView() == null) {
+                    return;
                 }
+                float progress = (float) (System.currentTimeMillis() - startTime) / duration;
+                progress = (progress > 1f) ? 1f : progress;
+                float interpolatedRatio = interpolator.getInterpolation(progress);
+                float tempDx = smoothDx * (interpolatedRatio - lastInterpolatedRatio);
+                //float tempDx = smoothDx * (interpolatedRatio - 0f);
+                lastInterpolatedRatio = interpolatedRatio;
+                float tempDy = 0f; // smoothDy * interpolatedRatio;
+                /*
+                Log8.d(progress);
+                Log8.d(tempDx);
+                Log8.d(lastInterpolatedRatio);
+                */
+                onDrag(tempDx, tempDy);
+                if (progress < 1f) {
+                    getImageView().post(this);
+                } else {
+                    mSmoothLocked = false;
+                }
+                mSmoothLocked = false; // disable lock
             }
         };
+        mSmoothLocked = true;
         getImageView().post(mSmoothDragRunnable);
         /*
         mAnimator = ValueAnimator.ofFloat(mLastShowProgress, mShowProgress);
