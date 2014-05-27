@@ -72,16 +72,20 @@ public class ViewPagerActivity extends Activity {
 		public View instantiateItem(ViewGroup container, int position) {
 			PhotoView photoView = new PhotoView(container.getContext());
 			photoView.setImageResource(sDrawables[position]);
-			photoView.setScaleType(ScaleType.CENTER_CROP);
 
 			// Now just add PhotoView to ViewPager and return it
 			container.addView(photoView, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+                        photoView.setScaleType(ScaleType.CENTER_CROP);
+                        //photoView.setPhotoViewAttacher(mAttacher);
+                        photoView.registerSensorManager();
 
 			return photoView;
 		}
 
 		@Override
 		public void destroyItem(ViewGroup container, int position, Object object) {
+                        //((ParallaxImageView) object).unregisterSensorManager();
+			((PhotoView) object).unregisterSensorManager();
 			container.removeView((View) object);
 		}
 

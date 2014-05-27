@@ -283,4 +283,11 @@ public class PhotoView extends ImageView implements IPhotoView {
         super.onDetachedFromWindow();
     }
 
+    public void registerSensorManager() {
+        mAttacher.registerSensorManager();
+    }
+
+    public void unregisterSensorManager() {
+        mAttacher.unregisterSensorManager();
+    }
 }

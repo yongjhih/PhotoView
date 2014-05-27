@@ -21,6 +21,11 @@ import android.graphics.Matrix;
 import android.graphics.Matrix.ScaleToFit;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorListener;
+import android.hardware.SensorManager;
 import android.util.FloatMath;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -36,6 +41,9 @@ import android.widget.ImageView.ScaleType;
 
 import java.lang.ref.WeakReference;
 
+import com.nvanbenschoten.motion.SensorInterpreter;
+import com.story.util.Log8;
+
 import uk.co.senab.photoview.gestures.OnGestureListener;
 import uk.co.senab.photoview.gestures.VersionedGestureDetector;
 import uk.co.senab.photoview.log.LogManager;
@@ -47,7 +55,7 @@ import static android.view.MotionEvent.ACTION_UP;
 
 public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         OnGestureListener,
-        ViewTreeObserver.OnGlobalLayoutListener {
+        ViewTreeObserver.OnGlobalLayoutListener, SensorEventListener {
 
     private static final String LOG_TAG = "PhotoViewAttacher";
 
@@ -182,6 +190,8 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
         // Finally, update the UI so that we're zoomable
         setZoomable(true);
+
+        mSensorInterpreter = new SensorInterpreter();
     }
 
     @Override
@@ -355,6 +365,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                     String.format("onDrag: dx: %.2f. dy: %.2f", dx, dy));
         }
 
+        Log8.d(dx, dy);
         ImageView imageView = getImageView();
         mSuppMatrix.postTranslate(dx, dy);
         checkAndDisplayMatrix();
@@ -1092,4 +1103,88 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
             }
         }
     }
+
+    public Context getContext() {
+        if (mContext == null) {
+            mContext = getImageView().getContext();
+        }
+        return mContext;
+    }
+
+    private Context mContext;
+
+    public void registerSensorManager() {
+        if (getContext() == null || mSensorManager != null) return;
+
+        // Acquires a sensor manager
+        mSensorManager = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
+
+        if (mSensorManager != null) {
+            mSensorManager.registerListener(this,
+                    mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                    SensorManager.SENSOR_DELAY_FASTEST);
+        }
+    }
+
+    /**
+     * Unregisters the ParallaxImageView's SensorManager. Should be called in onPause from
+     * an Activity or Fragment to avoid continuing sensor usage.
+     */
+    public void unregisterSensorManager() {
+        if (mSensorManager == null) return;
+
+        mSensorManager.unregisterListener(this);
+        mSensorManager = null;
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (getImageView() == null) return;
+        final float [] vectors = mSensorInterpreter.interpretSensorEvent(getContext(), event);
+
+        // Return if interpretation of data failed
+        if (vectors == null) return;
+        float x = vectors[2];
+        float y = vectors[1];
+        if (mOriginalVectorX == -1f && mOriginalVectorY == -1f) {
+            mOriginalVectorX = x;
+            mOriginalVectorY = y;
+        }
+
+        float dx = (mOriginalVectorX - x) * 1000;
+        float dy = (mOriginalVectorY - y) * 1000;
+        // Set translation on ImageView matrix
+        onDrag(dx, dy);
+        mOriginalVectorX = x;
+        mOriginalVectorY = y;
+    }
+
+    public void onSmoothDrag(float dx, float dy) {
+        mAnimator = ValueAnimator.ofFloat(mLastShowProgress, mShowProgress);
+        mAnimator.addUpdateListener(new AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animator) {
+                notifyProgress((Float) animator.getAnimatedValue());
+            }
+        });
+
+        // arrived
+        //mAnimator.setDuration(5 * 1000);
+        //mAnimator.setInterpolator(new CubicBezierInterpolator(.01, 1, .01, 1));
+        mAnimator.setDuration(100);
+        mAnimator.setInterpolator(new CubicBezierInterpolator(.01, .7, .01, 1));
+        mAnimator.setFrameDelay(300);
+        mAnimator.start();
+    }
+
+    private float mOriginalVectorX = -1f;
+    private float mOriginalVectorY = -1f;
+
+    private SensorInterpreter mSensorInterpreter;
+    private SensorManager mSensorManager;
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		// TODO Auto-generated method stub
+	}
 }
