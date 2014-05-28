@@ -479,6 +479,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                     // If we're flinging, and the user presses down, cancel
                     // fling
                     cancelFling();
+                    unregisterSensorManager();
                     break;
 
                 case ACTION_CANCEL:
@@ -493,6 +494,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                             handled = true;
                         }
                     }
+                    registerSensorManager();
                     break;
             }
 
