@@ -1146,14 +1146,14 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
         // Return if interpretation of data failed
         if (vectors == null) return;
-        float x = vectors[2];
+        float x = vectors[0];
         float y = vectors[1];
         if (mOriginalVectorX == -1f && mOriginalVectorY == -1f) {
             mOriginalVectorX = x;
             mOriginalVectorY = y;
         }
 
-        float dx = (mOriginalVectorX - x) * 5000;// * TODO widthRatio
+        float dx = (mOriginalVectorX - x) * 150;// * TODO widthRatio
         float dy = 0; //(mOriginalVectorY - y) * 5000; // * TODO heightRaito
         // Set translation on ImageView matrix
         //onDrag(dx, dy);
